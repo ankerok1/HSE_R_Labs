@@ -1,0 +1,139 @@
+---
+title: 'MAGOLEGO SNA 2019 Egor Krotov HW #4'
+author: "Egor Krotov"
+date: '10 июня 2019 г '
+output: html_document
+---
+
+# Network Epidemics
+
+```{r}
+library(igraph)
+library(EpiModel)
+library(xtable)
+```
+
+## SIR Model
+
+You need to perform epidemic SIR model on different types of networks: Try different parameters for network generation: 
+
+```{r, echo = F, message = F, warning = F}
+generated = list()
+generated$renyi = erdos.renyi.game(n = 400 , p.or.m = 0.03 , type=c("gnp"))
+generated$watts = watts.strogatz.game(dim = 1 , size = 1100 , nei = 3, p = 0.02)
+generated$barabasi = barabasi.game(n = 200 , m = 40 , directed=FALSE)
+table_net = read.table("Net.txt")
+table_net = t(as.matrix(table_net))
+generated$network = graph(table_net)
+sprintf("Number of clusters with RENYI: %d, WITH BARABASI %d, WITH WATTS %d, WITH NETWORK %d",no.clusters(generated$barabasi), no.clusters(generated$renyi),no.clusters(generated$watts),no.clusters(generated$network))
+#With those parameters Number of clusters is often the same for RENYI, BARABASI and WATTS - 1. So networks looks like one big centralized cluster.
+``` 
+
+Moreover perform modeling on real peer-to-peer network here
+Your goal is to perform a research on epidemics: Use different values of parameters listed below
+
+```{r}
+beta = 2
+gamma = 4
+ntrials = 100
+sim = lapply(generated, sir, beta=beta, gamma=gamma, no.sim=ntrials)
+
+beta_s2 = 4
+gamma_s2 = 8
+trials_s2 = 280
+sim_second = lapply(generated, sir, beta=beta_s2, gamma=gamma_s2, no.sim=trials_s2)
+
+beta_s3 = 7
+gamma_s3 = 9
+trials_s3 = 620
+sim_third = lapply(generated, sir, beta=beta_s3, gamma=gamma_s3, no.sim=trials_s3)
+
+beta_s4 = 10
+gamma_s4 = 4
+trials_s4 = 1150
+sim_fourth = lapply(generated, sir, beta=beta_s4, gamma=gamma_s4, no.sim=trials_s4)
+#For all those models i generated slightly different set  of parameters so it should affect representation of models on graphs.
+```
+
+at least 3 different versions, for example:
+• betta (4 6 8)
+• gamma (8 6 2)
+• niter (100 500 1000)
+For some reason beta and gamma parameters should not be set below 0 and 1. Looks like they are somehow
+normilized during simulation.
+The code below can help you with plotting
+
+```{r fig.width = 15, fig.height = 6}
+#Looking at tre first model
+plot(sim$renyi)
+plot(sim$barabasi, color="yellow", median_color="gold", quantile_color="gold")
+plot(sim$watts, color="pink", median_color="red", quantile_color="red")
+
+x.max = max(sapply(sapply(sim, time_bins), max))
+y.max = 1.05 * max(sapply(sapply(sim, function(x) median(x)[["NI"]]), max, na.rm=TRUE))
+
+plot(time_bins(sim$renyi), median(sim$renyi)[["NI"]], type="l", lwd=2, col="blue", xlim=c(0, x.max), ylim=c(0, 100), xlab="Time", ylab=expression(N[I](t)))
+
+lines(time_bins(sim$barabasi), median(sim$barabasi)[["NI"]], lwd=2, col="gold")
+lines(time_bins(sim$watts), median(sim$watts)[["NI"]],lwd=2, col="red")
+
+legend("topright", c("RENYI.", "BARABASI", "WATTS"),col=c("blue", "gold", "red"), lty=3)
+#At RENYI and BARABASI models we see a fast peak, but not on WATTS - because of its sigle cluster structure so function movement is smooth. On every model time is a key factor to look at and understand current situation.
+```
+
+You need to plot three values on the graphics: Number of infected, number of suseprible, number of recovered - all depends on time.
+As a result of this task, you need to provide 12 plots (one for each network with 3 diferent parameters) with explanation.
+
+```{r fig.width = 15, fig.height = 6}
+#Looking second model
+plot(sim_second$barabasi, color="yellow", median_color="gold", quantile_color="gold")
+plot(sim_second$watts, color="pink", median_color="red", quantile_color="red")
+plot(sim_second$renyi)
+
+x.max = max(sapply(sapply(sim_second, time_bins), max))
+y.max = 1.05 * max(sapply(sapply(sim_second, function(x) median(x)[["NI"]]), max, na.rm=TRUE))
+
+plot(time_bins(sim_second$renyi), median(sim_second$renyi)[["NI"]], type="l", lwd=2, col="blue", xlim=c(0, x.max), ylim=c(0, 100), xlab="Time", ylab=expression(N[I](t)))
+
+lines(time_bins(sim_second$barabasi), median(sim_second$barabasi)[["NI"]], lwd=2, col="gold")
+lines(time_bins(sim_second$watts), median(sim_second$watts)[["NI"]],lwd=2, col="red")
+legend("topright", c("RENYI", "BARABASI", "WATTS"),col=c("blue", "gold", "red"), lty=3)
+# BARAbASI model hits its peak first just as in the prevoius plot, RENYI goes second and WATTS third, only difference is behavior of WATTS at the end - its increasing.
+```
+
+
+```{r fig.width = 15, fig.height = 6}
+#Looking at the third model
+plot(sim_third$barabasi, color="yellow", median_color="gold", quantile_color="gold")
+plot(sim_third$watts, color="pink", median_color="red", quantile_color="red")
+plot(sim_third$renyi)
+
+x.max = max(sapply(sapply(sim_third, time_bins), max))
+y.max = 1.05 * max(sapply(sapply(sim_third, function(x) median(x)[["NI"]]), max, na.rm=TRUE))
+
+plot(time_bins(sim_third$renyi), median(sim_third$renyi)[["NI"]], type="l", lwd=2, col="blue", xlim=c(0, x.max), ylim=c(0, 200), xlab="Time", ylab=expression(N[I](t)))
+
+lines(time_bins(sim_third$barabasi), median(sim_third$barabasi)[["NI"]], lwd=2, col="gold")
+lines(time_bins(sim_third$watts), median(sim_third$watts)[["NI"]],lwd=2, col="red")
+legend("topright", c("RENYI", "BARABASI", "WATTS"),col=c("blue", "gold", "red"), lty=3)
+#This time on simulation of third model we see that RENYI and BARABASI model growing and "dying" much faster just at the start which is based on small trials parameter. WATTS model stays for lonng time but going to zero this time at the end.
+```
+
+
+```{r fig.width = 15, fig.height = 6}
+#Looking at the final model 
+plot(sim_fourth$renyi)
+plot(sim_fourth$barabasi, color="yellow", median_color="gold", quantile_color="gold")
+plot(sim_fourth$watts, color="pink", median_color="red", quantile_color="red")
+
+x.max = max(sapply(sapply(sim_fourth, time_bins), max))
+y.max = 1.05 * max(sapply(sapply(sim_fourth, function(x) median(x)[["NI"]]), max, na.rm=TRUE))
+
+plot(time_bins(sim_fourth$renyi), median(sim_fourth$renyi)[["NI"]], type="l", lwd=2, col="blue", xlim=c(0, x.max), ylim=c(0, 500), xlab="Time", ylab=expression(N[I](t)))
+
+lines(time_bins(sim_fourth$barabasi), median(sim_fourth$barabasi)[["NI"]], lwd=2, col="gold")
+lines(time_bins(sim_fourth$watts), median(sim_fourth$watts)[["NI"]],lwd=2, col="red")
+legend("topright", c("E.R.", "BARABASI", "WATTS"),col=c("blue", "gold", "red"), lty=3)
+#Now all the three models had solid peak and slight decreasement over time to zero. Parameters for this time was high for beta and low for gamma which is reason for that behavior.
+```
+

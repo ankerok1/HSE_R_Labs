@@ -1,0 +1,109 @@
+---
+title: 'MAGOLEGO SNA 2019 Semyon Gudkov HW #3'
+author: "Semyon Gudkov"
+date: '24 мая 2019 г '
+output: html_document
+---
+
+
+## Yahoo Music Network
+
+For this assignment, you have to load the part of Yahoo Music Network. Archive contains network in GML format and corresponding list of artists.
+
+```{r}
+library('igraph')
+
+#Загружаю нужную библиотеку
+
+yahoo_MUSIC = read.graph("music2K.gml", format = "gml")
+
+yahoo_MUSIC.isolated.vertices = V(yahoo_MUSIC)[degree(yahoo_MUSIC) == 0]
+
+#Для корректной работы надо избавиться от изолированных вершин
+```
+
+Edges in this network appear if enough number of users have given ratings to both music bands. Note, that edges are weighted with similarity of the ratings.
+
+### 1. Preprocessing
+This network needs to be preprocessed. Do the steps, described on seminar, to make it look properly. How many vertices and edges were deleted?
+
+```{r}
+ec_f1 = ecount(yahoo_MUSIC)
+vc_f1 = vcount(yahoo_MUSIC)
+
+yahoo_MUSIC = delete.vertices(yahoo_MUSIC, degree(yahoo_MUSIC) == 0)
+proverka = is.simple(simplify(yahoo_MUSIC, remove.multiple=FALSE))
+
+print(sprintf("IS SIMPLE: %s",proverka))
+
+ec_f2 = ecount(yahoo_MUSIC)
+vc_f2 = vcount(yahoo_MUSIC)
+
+vc_raznica = vc_f1 - vc_f2
+ec_raznica = ec_f1 - ec_f2
+
+print(sprintf("Got deleted vertices and edges:  %d and %d ", vc_raznica, ec_raznica))
+```
+
+### 2. Clustering
+
+Define clusters for this networks using one of the algorithms described on lectures and seminars:
+
+```{r}
+#Алгоритм fastgreedy работает без ошибок, поэтому я выбрал его
+
+setka = fastgreedy.community(yahoo_MUSIC)
+```
+
+Compute density of obtained clusters:
+
+```{r}
+setka_dens  = 1:length(setka)
+coming_c =  1:length(setka)
+for (j in 1:length(setka)) 
+{
+tmp_graph = induced.subgraph(yahoo_MUSIC, which(setka$membership == j))
+tmp_con = coming_c[j]
+tmp_den = setka_dens[j]
+tmp_con = ecount(tmp_graph)
+tmp_den = graph.density(tmp_graph)
+print(sprintf("Group %d has %d edges and density %.2f", j , tmp_con, tmp_den))
+}
+```
+
+Compute the ratio of inner clusters connections to outer ones:
+
+```{r}
+for (i in 1:length(setka))
+{
+tmp_graph = induced.subgraph(yahoo_MUSIC, setka$membership == i)
+sum_edges = length(E(yahoo_MUSIC))
+coming_ed = length(E(tmp_graph))
+outgoing_ed = length(E(induced.subgraph(yahoo_MUSIC,!(setka$membership == i))))
+summa_vsego = sum_edges - coming_ed - outgoing_ed
+print(sprintf("Ratio for cluster # %d = %.3f",i, coming_ed/summa_vsego))
+}
+```
+
+### 3. Visualization & interpretation
+
+Visulize five of the most dense clusters. Use names of artists as node labels on the graph.
+
+```{r}
+avtori_pesen = scan("artists.txt", what = character(), sep = "\n")
+
+avtori_pesen = avtori_pesen[-yahoo_MUSIC.isolated.vertices]
+
+#Опять делаю чистку
+
+V(yahoo_MUSIC)$label = avtori_pesen
+
+
+top_result = which(setka_dens %in% sort(setka_dens, decreasing = TRUE)[1:5])
+for (i in 1:5) 
+{
+best_vert = which(setka$membership %in% top_result[i])
+top_graph = induced.subgraph(yahoo_MUSIC, best_vert)
+plot(top_graph, layout=layout.circle, main=sprintf("Top dense cluster number  %d ", i))
+}
+```

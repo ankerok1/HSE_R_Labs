@@ -1,0 +1,296 @@
+---
+title: 'MAGOLEGO SNA 2019 Egor Krotov HW #1'
+author: "Egor Krotov"
+date: '09.05.2019'
+output: html_document
+---
+
+#Problem 1.
+
+##1.
+
+Recall from the lecture that probability density function (PDF) for power law distributed variable is:
+
+$$p(x) = Cx^{-\alpha}$$
+
+Take logarithm of both sides:
+$$\log{p(x)} = \log{C} - \alpha \log{x}$$
+Now you can use standard R functions like `lm()` to calculate 
+$$\alpha$$
+
+coefficient via linear regression. However you might find that it is a bad idea. 
+
+Alternatively, you can compute cumulative density function (CDF) 
+
+$$f(x) = Pr(x < X)$$
+
+of power law distribution. Good things about CDF of the power law are:
+
+* It still has form of power law
+* On log-log plot it looks more like a line
+
+Derive the formula for CDF function of power law $$F(x)$$. It means you should calculate cumulative distribution function by integration of PDF function.
+
+$$p(x) = Cx^{-\alpha},\;x>x_{min}$$
+
+$$F(x) = \int_{x_{min}}^x p(x) dx = \int_{x_{min}}^x C t^{-\alpha} dt $$
+
+$$F(x) = C \frac{t^{1 - \alpha}}{1-\alpha}|_{x_{min}}^x = C \left( -\frac{x^{1 - \alpha}}{\alpha-1} + \frac{x_{min}^{1 - \alpha}}{\alpha-1} \right)$$
+
+
+The antiderivative exists only if $\alpha>1$. We know that $$F(+\infty) = Pr(X<+\infty) = 1$$, then
+
+$$F(+\infty) = \int_{x_{min}}^{+\infty} p(x) dx = \int_{x_{min}}^{+\infty} C t^{-\alpha} dt$$
+
+
+$$F(x) = C \frac{t^{1 - \alpha}}{1-\alpha}|_{x_{min}}^{+\infty} = C \left( \frac{x_{min}^{1 - \alpha}}{\alpha-1} \right)$$
+
+$$C = \frac{\alpha-1}{x_{min}^{1 - \alpha}}$$
+
+##2.
+Download  Internet Network and plot PDF and CDF of the degree distribution in log-log scale
+
+```{r, fig.height=8, fig.width=8}
+library(igraph)
+data = read.table("Internet_AS.dat")
+data = t(as.matrix(data))
+graph = graph(data)
+
+# getting DPF and CDF
+xmax = max(degree(graph))
+degree_range = as.numeric(1:xmax)
+degree_dist = degree.distribution(graph, cumulative = FALSE)[degree_range]
+
+# deleting zero values 
+nonzero.position = which(degree_dist > 0)
+degree_dist = degree_dist[nonzero.position]
+degree_range = degree_range[nonzero.position]
+cum_degree_range = degree_range + 1
+compl_cum_degree_range = cum_degree_range
+cum_degree_dist = cumsum(degree_dist)
+compl_cum_degree_dist = degree.distribution(graph, cumulative = TRUE)[cum_degree_range]
+compl_cum_degree_dist = compl_cum_degree_dist[cum_degree_range]
+
+# plotting two graphs side by side 
+par(mfrow=c(2,1))
+plot(degree_dist, log = "xy", main = "PDF", xlab = "node degree (log)", ylab = "frequency (log)")
+plot(cum_degree_dist, log = "xy", main = "CDF", xlab = "node degree (log)", ylab = "frequency (log)")
+```
+
+##3.
+Fit linear regression model to PDF and CDF to estimate $\alpha$. Plot fitted models along with data
+This code is for PDF. Pay attention to the removal of zero values. 
+The code for CDF is similar, the only difference is which array we use.
+```{r, fig.height=8, fig.width=8}
+# fitting linear regression 1 - PDF
+reg = lm(log(degree_dist) ~log(degree_range))
+coefficients =coef(reg)
+func_powerlaw = function(x)exp(coefficients[[1]] + coefficients[[2]] *log(x))
+alpha = -coefficients[[2]]
+# plotting PDF and its estimation
+plot(degree_dist ~ degree_range, log = "xy", main = "PDF", xlab = "node degree (log)", ylab = "frequency (log)")
+curve(func_powerlaw, col = "red", add = TRUE, n =length(degree_range))
+
+# fitting linear regression 2 - CDF
+reg = lm(log(cum_degree_dist) ~log(cum_degree_range))
+coefficients =coef(reg)
+func_powerlaw = function(x)exp(coefficients[[1]] + coefficients[[2]] *log(x))
+alpha = -coefficients[[2]]
+# plotting CDF and its estimation
+plot(cum_degree_dist ~ cum_degree_range, log = "xy", main = "CDF", xlab = "node degree (log)", ylab = "frequency (log)")
+curve(func_powerlaw, col = "red", add = TRUE, n =length(cum_degree_range))
+```
+
+#Problem 2.
+
+## 1. 
+Using `power.law.fit` find `xmin` value and corresponding `alpha`
+As said in igraph documentation, "in many real-world cases, the power-law behaviour kicks in only above a threshold value xmin". The "plfit" implementation uses the maximum likelihood principle. The optimal xmin corresponds to the largest p-value of KS test.
+
+```{r}
+d = degree(graph)
+fit = power.law.fit(d, NULL, implementation = "plfit")
+alpha = fit$alpha
+xmin = fit$xmin
+C = (alpha-1)*xmin^(alpha-1	)
+alpha
+xmin
+```
+
+##2.
+Put fitted model along with empirical PDF (CDF)
+Pay attention to the coefficients.
+
+```{r, fig.width = 8, fig.height = 8}
+par(mfrow=c(2,1))
+fit_pdf = function(x) return(C*x^(-alpha))
+plot(degree_range,degree_dist, log = "xy", main = "PDF", xlab = "node degree (log)", ylab = "frequency")
+#lines(x, x^(-alpha), col="green")
+par(new=TRUE)
+curve(fit_pdf,from=xmin,to=xmax, log="xy", col = "red", add = FALSE, n = length(degree_range),main = "", xlab = "", ylab = "", axes=FALSE)
+#x=xmin:xmax
+#plot(log(x), log(C * x ^ (-alpha)), col="red", xlab="", ylab="", yaxt="n")
+#lines(log(x), log(C * x ^ (-alpha)), col="brown")
+
+
+#reg = lm(log(cum_degree_dist) ~ log(cum_degree_range))
+#coefficients = coef(reg)
+#func_powerlaw = function(x) exp(coefficients[[1]] + coefficients[[2]] * log(x))
+par(mfrow=c(1,1))
+fit_cdf = function(x) return(1-(x^(1-alpha)*xmin^(alpha-1)))
+plot(cum_degree_range, cum_degree_dist, log = "xy", main = "CDF", xlab = "node degree (log)", ylab = "frequency",xaxt='n',yaxt='n', ann=FALSE)
+#lines(x, x^(-alpha), col="green")
+par(new=TRUE)
+curve(fit_cdf,from=xmin,to=xmax, log="xy", col = "red", add = FALSE, n = length(degree_range),main = "CDF", xlab = "", ylab = "", axes=FALSE)
+```
+
+#Problem 3.
+For Wikipedia vote network (clear up comments in the beginning of the file) derive the following characteristics:
+
+1. The number of vertices and edges
+2. The number of loops (edges that start and end at the same vertex)
+3. The number of symmetrical edges
+4. Degree distribution (without considering the direction)
+5. The number of nodes with a degree greater than 1 and with a degree greater than 15
+6. Find strongly connected components and their sizes.
+7. Take subgraph of the original graph, which consists of the first 80 vertices and set color into red for those nodes in which the number of incoming edges is greater than the number of outgoing edges.Otherwise, set color in blue. For nodes with the same number of incoming and outgoing edges set color into green. Besides that, increase the size of vertices with a maximum value of transitivity (for example, you may set size into 10 for these nodes and 1 for others). 
+8.Take subgraph from the previous task and find maximal connected component. For this component highlight any way that corresponds to the diameter of the subgraph. How many such paths are in this graph? 
+9. Make average neighbor degree vs node degree scatter plot (one point on the plot per node) and aggregated plot, averaging over all nodes with the same degree (aggregated average vs degree, one value per degree). Explain your observations. 
+10. Make  local clustering coefficient vs node degree scatter plot (one point on the plot per node) and aggregated, averaging over all nodes with the same degree (aggregated average vs degree, one value per degree). Explain your observations.
+
+##1. Vertices and edges
+
+```{r}
+initial = read.table("Wiki-vote.txt")
+initial = t(as.matrix(initial))
+graph = graph(initial)
+vcount(graph)
+ecount(graph)
+```
+
+##2. Loops
+```{r}
+sum(is.loop(graph), na.rm=TRUE)
+```
+
+##3. symmetrical edges
+```{r}
+reciprocity(graph)*ecount(graph)/2
+```
+
+##4. Degree distribution
+```{r}
+degree_dist = degree.distribution(graph)
+plot(degree.distribution(graph, mode='all')[which(degree_dist  > 0)], log = 'xy', main = 'PDF', xlab = 'degree', ylab = 'frequency')
+```
+
+##5. The number of nodes with a degree greater than 1 and with a degree greater than 15
+```{r}
+sum(degree(graph) > 1, na.rm=TRUE)
+sum(degree(graph) > 15, na.rm=TRUE)
+```
+
+##6. Strongly connected components and their sizes.
+```{r}
+components = clusters(graph, mode = "strong")
+#print(components$csize)
+print(components$no)
+```
+
+There is some variation in the results of task number 7 and 8. You can compute the strongly and weakly connected components. Depending on the type of connectivity we obtain different results.
+
+##7. Take subgraph of the original graph, which consists of the first 80 vertices and set color into red for those nodes in which the number of incoming edges is greater than the number of outgoing edges.Otherwise, set color in blue. For nodes with the same number of incoming and outgoing edges set color into green. Besides that, increase the size of vertices with a maximum value of transitivity (for example, you may set size to 10 for these nodes and 1 for others).
+Use logical indices to get required vertices efficiently. In order to find the number of incoming and outcoming edges, either "incident" or "degree" with the proper mode could be used. 
+```{r, fig.width = 8, fig.height = 8}
+get_subgraph = induced.subgraph(graph, V(graph)[1:80])
+V(get_subgraph)$label.cex = .75
+for (the_vert in V(get_subgraph)) 
+  {
+  sum_inputs = length(incident(get_subgraph, the_vert, mode = "in"))
+  sum_outputs = length(incident(get_subgraph, the_vert, mode = "out"))
+  if (sum_inputs > sum_outputs) 
+    {
+    V(get_subgraph)[the_vert]$color = "red" 
+    V(get_subgraph)[the_vert]$label.color = "white"
+  } else if (sum_inputs == sum_outputs) 
+    {
+    V(get_subgraph)[the_vert]$color = "green"
+  } else
+    {
+    V(get_subgraph)[the_vert]$color = "blue"
+    V(get_subgraph)[the_vert]$label.color = "white"
+  }
+}
+get_subgraph.trans = transitivity(get_subgraph, type = "local")
+get_subgraph.trans.max = max(get_subgraph.trans, na.rm = T)
+get_subgraph.vert.size = rep(8, times = vcount(get_subgraph))
+for (the_vert in V(get_subgraph)[which(!is.na(get_subgraph.trans))]) 
+  {
+  if (get_subgraph.trans[the_vert] == get_subgraph.trans.max) 
+    {
+    get_subgraph.vert.size[the_vert] = 16
+  }
+}
+plot(get_subgraph, vertex.size = setNames(get_subgraph.vert.size, V(get_subgraph)))
+
+```
+
+##8.Take subgraph from the previous task and find maximal connected component. For this component highlight any way that corresponds to the diameter of the subgraph. How many such paths are in this graph?
+You have to find the longest shortest path. Use function "shortest.paths" to obtain the required matrix. Once the diameter is found, you can count shortest ways of given length with the use of "path.length.hist".
+```{r}
+subgraph = induced.subgraph(graph, V(graph)[1:80])
+# component_distribution(subgraph, cumulative = FALSE, mul.size = FALSE)
+components(subgraph, mode = c("weak", "strong"))
+diameter(subgraph)
+matrix = shortest.paths(subgraph)
+which(matrix==5, arr.ind=TRUE)
+get_num = as.table(path.length.hist(subgraph)$res)
+names(get_num) = 1:length(get_num)
+barplot(get_num)
+```
+
+
+##9. Make average neighbour degree vs node degree scatter plot (one point on the plot per node) and aggregated plot, averaging over all nodes with the same degree (aggregated average vs degree, one value per degree). Explain your observations.
+One possible way is to iterate over unique values of degrees, counting how many nodes have this degree and what their average neighbour degree is.
+```{r, fig.width = 8, fig.height = 8}
+
+get_subgraph.avg.nd = graph.knn(get_subgraph)$knn
+get_subgraph.nd = degree(get_subgraph)
+plot(get_subgraph.avg.nd ~ get_subgraph.nd, main = "neighbour degree", xlab = "node degree", ylab = "average neighbour degree")
+get_subgraph.nd.uni = unique(get_subgraph.nd)
+get_subgraph.aggr.avg.nd = c()
+for (i in seq_along(get_subgraph.nd.uni)) 
+  {
+  unideg = get_subgraph.nd.uni[i]
+  get_subgraph.aggr.avg.nd[i] = sum(get_subgraph.avg.nd[which(unideg == get_subgraph.nd)]) / length(which(unideg == get_subgraph.nd)) 
+}
+plot(get_subgraph.aggr.avg.nd ~ get_subgraph.nd.uni, main = "aggregated neighbour degree", xlab = "node degree", ylab = "average neighbour degree")
+```
+low node degree has more neighbours than expected and so high node degree has lower one, in giant component nodes neighbours degree is  greater (average) than its outside.
+
+##10. Make  local clustering coeff vs node degree scatter plot (one point on the plot per node) and aggregated, averaging over allnodes with the same degree (aggregated average vs degree, one value per degree). Explain your observations.
+The code is similar to the previous one. Local clustering coefficients for each node could be found with the use of "transitivity" function.
+
+
+```{r, warning = F, fig.width = 8, fig.height = 8}
+
+get_subgraph.cc.naomit = na.omit(transitivity(get_subgraph, type = "local"))
+get_subgraph.nd.na = get_subgraph.nd
+for(i in seq_along(get_subgraph.nd)) 
+  {
+  if (i %in% na.action(get_subgraph.cc.naomit)) 
+  {
+    get_subgraph.nd.na[i] = NA
+  }
+}
+plot(get_subgraph.cc.naomit ~ na.omit(get_subgraph.nd.na), main = "local clustering", xlab = "node degree", ylab = "coefficient")
+get_subgraph.nd.uni = unique(get_subgraph.nd)
+get_subgraph.aggr.avg.cc = c()
+for (i in seq_along(get_subgraph.nd.uni)) 
+  {
+  unideg = get_subgraph.nd.uni[i]
+  get_subgraph.aggr.avg.cc[i] = sum(get_subgraph.cc.naomit[which(unideg == get_subgraph.nd)]) / length(which(unideg == get_subgraph.nd)) 
+  }
+plot(get_subgraph.aggr.avg.cc ~ get_subgraph.nd.uni, main = "local clustering", xlab = "node degree", ylab = "average neighbour degree")
+```
+correlation is  negative

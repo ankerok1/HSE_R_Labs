@@ -1,0 +1,259 @@
+---
+title: 'MAGOLEGO SNA 2019 Semyon Gudkov HW #2'
+author: "Semyon Gudkov"
+date: '23 мая 2019 г '
+output: html_document
+---
+
+## Task 1. Your social network
+
+For the first task, you have to load your vk.com network. Please follow the instructions posted on the coursewiki or user VK Application. For FB users try to use NetVizz. If you did it correctly, you should have aGraphML file with your own network. Read it to R:
+
+```{r}
+library(igraph)
+library(rgexf)
+library(xtable)
+library(ggplot2)
+library(R.matlab)
+
+# Загружаю необходимые бибилиотеки 
+
+semyon = read.gexf("semyon.gexf")
+my_friends = gexf.to.igraph(semyon)
+
+print("MY NUMBER OF FRIENDS: ")
+print(vcount(my_friends))
+
+#Вконтакте у меня 435 друзей. Выгрузка через приложение из PDF файла задания.
+
+
+sum(degree(my_friends) < 3)
+my_friends_gg = delete_vertices(my_friends, which(degree(my_friends) < 3))
+
+#Вконтакте у меня много случайных друзей или зааблокированных профилей, для репрезентативности от них надо избавиться. 
+```
+
+### 1. Degree distribution
+
+First, plot degree distribution of your network in log-log scales:
+
+```{r}
+deg_distrib = degree.distribution(my_friends, cumulative = TRUE)
+plot(deg_distrib, log="xy", main = "Cumulative degree distribution of friends network in log-log scale", xlab = "NODE DEGREE", ylab = "NUMBERS")
+```
+
+Is there any correspondence between actual degree distribution of your network and the Power Law distribution? If not, explain why.
+
+```{r}
+my_friends_degree = degree(my_friends)
+my_friends_power_law = power.law.fit(my_friends_degree, implementation = "plfit")
+sprintf("%.4f", my_friends_power_law$KS.p)
+print("Распределение на моём графике соответствует стпенному закону. Проверка по формуле - соответствие на 100%. Значит у меня несколько важных друзей и много случайных, маловажных.")
+```
+
+Now, let’s see how it would look if it was random. Produce Erdos-Renyi graph matching your real network(same number of nodes and same average degree). Compare it with your degree distribution
+
+```{r, warning = F, fig.width = 10, fig.height = 5}
+plot(deg_distrib, log="xy", main = "FRIENDS GRAPH TO RANDOM GRAPH",xlab = "NODE DEGREE", ylab = "NUMBERS")
+par(new = T)
+random_friends = erdos.renyi.game(vcount(my_friends), mean(degree(my_friends))/vcount(my_friends)/2, type = "gnp", directed = TRUE)
+random_friends_dist = degree.distribution(random_friends, cumulative = TRUE)
+plot(random_friends_dist,log="xy", main = "", xlab = "", ylab = "", col="green", axes = F)
+par(new = F)
+legend("bottomleft", legend = c("ORIGINAL", "RANDOM"), col = c('black', 'green'), lty = 1)
+print("Я разделил графики по цветам для лучшей сравнительной характеристики. Их поведение отличается. На моём графике знаение степеней увеличиваетс плавно, по-человечески, и имеет более важные вершины - лучших друзей.")
+
+```
+
+
+### 2. Compute centrality metrics
+
+Compute for your network: 
+
+* Degree centrality
+* Closeness centrality
+* Betweenness centrality
+* Eigenvector centrality
+* Bonacich power centrality
+* Alpha centrality
+
+```{r}
+centralization.degree(my_friends)$centralization
+centralization.closeness(my_friends, mode="all")$centralization
+centralization.betweenness(my_friends, directed = TRUE, nobigint = TRUE)$centralization
+centralization.evcent(my_friends, directed = TRUE, scale = FALSE, options = igraph.arpack.default)$centralization
+#вычисление Alpha и Bonpow выдаёт ошибки из-за особенностей моего графа
+```
+
+Output six plots corresponding to six centrality metrics you've computed: 
+
+* Use first names of your friends as node labels on the graph (you may hide this information if you wish -- change it by integer ID).
+* Keep the same layout of the network.
+* Make node sizes and colours proportional to the respective centrality metrics.
+
+```{r, warning = F, fig.width = 15, fig.height = 20}
+
+lay = layout.fruchterman.reingold(my_friends)
+palette = colorRampPalette(c('green','red'))
+deg = degree(my_friends)
+vert_size = ifelse(deg>75, 1/50*deg, 1)
+my_color = palette(500)[as.numeric(cut(deg,breaks = 500))]
+half = 0.5
+
+plot(my_friends, layout=lay, vertex.color=my_color, vertex.size=vert_size, vertex.label=NA,  main="Degree CENTRALITY")
+
+clos=closeness(my_friends)
+my_color_5 = palette(500)[as.numeric(cut(clos,breaks = 500))]
+
+plot(my_friends,layout = lay, vertex.label=NA, vertex.color=my_color_5, vertex.size=clos*15000,  main="Closeness CENTRALITY")
+
+betw = betweenness(my_friends)
+my_color_2 = palette(500)[as.numeric(cut(betw,breaks = 500))]
+vert_size = ifelse(betw>4000, 1/3000*betw, 1)
+
+plot(my_friends,layout = lay, vertex.color=my_color_2, vertex.size=vert_size, vertex.label=NA,  main="Betwenness CENTRALITY")
+
+ev = evcent(my_friends)$vector
+my_color_3 = palette(500)[as.numeric(cut(ev,breaks = 500))]
+vert_size = ifelse(ev>0.2, 4*ev, 0.8)
+
+plot(my_friends,layout = lay, vertex.size=vert_size, vertex.color=my_color_3, vertex.label=NA,  main="Eigenvector CENTRALITY")
+
+bon = bonpow(my_friends_gg, rescale=TRUE)
+bonCol = palette(500)[as.numeric(cut(bon,breaks = 500))]
+vert_size = ifelse(bon>0.01, 4*bon, 0.7)
+
+plot(my_friends_gg,layout = lay, vertex.size=vert_size, vertex.color=bonCol, vertex.label=NA,  main="Bonachich power CENTRALITY")
+
+alpha = alpha.centrality(my_friends_gg,alpha = 0,9)
+my_color_4 = palette(500)[as.numeric(cut(alpha,breaks = 500))]
+vert_size = ifelse(alpha>0.3, 2*alpha, 0.7)
+
+plot(my_friends_gg,layout = lay, vertex.size=vert_size, vertex.color=my_color_4, vertex.label=NA,  main="Alpha CENTRALITY")
+
+```
+
+Now, output top ten nodes in each ranking. Again, print only first names in your table to keep privacy:
+
+```{r}
+sort(deg, decreasing = TRUE)[1:10]
+sort(clos, decreasing = TRUE)[1:10]
+sort(betw, decreasing = TRUE)[1:10]
+sort(ev, decreasing = TRUE)[1:10]
+sort(alpha, decreasing = TRUE)[1:10]
+sort(bon, decreasing = TRUE)[1:10]
+
+#
+```
+
+## Task 2. Flickr network
+
+In the second task, you will work with a large directed graph.
+Please download flickr.
+matData contains sparse matrix A and list of user names. This is a denser part of the Flickr photo sharing sitefriendship graph from 2006. Edge direction corresponds to friendship requests (following). Some of the linksare reciprocal, others not
+It’s a Matlab file. How to deal with it in R? There is a packageR.matlab. Please install it and calllibrary(R.matlab)
+Now use readMat function to read the file and extract adjacency matrix and a list of user names:
+
+```{r, warning = F}
+flickr = readMat("flickr.mat")
+flickr.mat = as.matrix(flickr[1]$A)
+flickr_NAMES = flickr[2]$names
+```
+
+If you have trouble loading large mat file on your laptop — try to use HSE computer classes with installed R+RStudio.
+Look at user names. You might want to remove spaces from the names. Use a functiongsubto remove them:
+
+```{r}
+flickr_NAMES = gsub(" ", "", flickr_NAMES)
+```
+
+Now create a graph, output the number of vertices and edges:
+
+```{r}
+flickr_BIG_GRAPH = graph.adjacency(flickr.mat, mode = "directed", weighted = NULL)
+
+flickr_names = flickr_NAMES
+
+print("VERTICES EDGES")
+
+vcount(flickr_BIG_GRAPH)
+
+ecount(flickr_BIG_GRAPH)
+```
+
+Compute in- and out- degree centralities, PageRank, Hubs and Authorities for this network:
+
+```{r}
+coming_DEGREE = centralization.degree(flickr_BIG_GRAPH, mode = "in")$centralization
+
+outgoing_DEGREE = centralization.degree(flickr_BIG_GRAPH, mode = "out")$centralization
+
+pagerank = page.rank(flickr_BIG_GRAPH)$vector
+
+hubs = hub.score(flickr_BIG_GRAPH)$vector
+
+auth = authority.score(flickr_BIG_GRAPH)$vector
+```
+
+Print top ten names in each ranking:
+
+```{r}
+print("In-degree:")
+coming_DEGREE = degree(flickr_BIG_GRAPH, mode = "in")
+best_COMING = sort(coming_DEGREE, decreasing = TRUE)[1:10]
+flickr_names[which(coming_DEGREE %in% best_COMING)]
+
+print("Out-degree:")
+outgoing_DEGREE=degree(flickr_BIG_GRAPH, mode = "out")
+best_OUTGOING = sort(outgoing_DEGREE, decreasing = TRUE)[1:10]
+flickr_names[which(outgoing_DEGREE %in% best_OUTGOING)]
+
+print("Page Rank:")
+best_POSITION = sort(pagerank, decreasing = TRUE)[1:10]
+flickr_names[which(pagerank %in% best_POSITION)]
+
+print("Hubs:")
+best_HUBS = sort(hubs, decreasing = TRUE)[1:10]
+flickr_names[which(hubs %in% best_HUBS)]
+
+print("Authorities:")
+best_AUTH = sort(auth, decreasing = TRUE)[1:10]
+flickr_names[which(auth %in% best_AUTH)]
+
+```
+
+Produce the following plots:
+* In-degree centralities versus out-degree centralities
+* In-degree centralities versus authorities
+* Out-degree centralities versus hubs
+* Hubs versus authorities
+* PageRank versus hubs
+* PageRank versus authorities
+
+```{r, fig.height = 7, fig.width=10}
+plot(coming_DEGREE, outgoing_DEGREE, col="blue", xlab = "In-degree", ylab = "Out-degree")
+print("Нет корреляции")
+plot(coming_DEGREE, auth, col="blue", xlab = "In degree", ylab = "Authority")
+print("Есть корреляция")
+plot(outgoing_DEGREE, hubs, col="blue", xlab = "Out degree", ylab = "Hubs")
+print("Есть корреляция")
+plot(hubs, auth, col="blue", xlab = "Hubs", ylab = "Authority")
+print("Нет корреляции")
+plot(pagerank, hubs, col="blue", xlab = "Page Rank", ylab = "Hubs")
+print("Нет корреляции")
+plot(pagerank, auth, col="blue", xlab = "Page Rank", ylab = "Authority")
+print("Есть корреляция")
+
+print("Есть большие аутлаеры - не поддающиеся описанию пользователи")
+```
+
+
+
+
+
+
+
+ 
+
+
+

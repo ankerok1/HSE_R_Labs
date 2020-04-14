@@ -1,0 +1,62 @@
+	
+	
+		
+			
+				Леонид Жуков:
+				19.04 Лекция 2 в 509 ауд.
+				Пара в 501 следующая.
+				
+				
+				Major nodes. Power Law. Six handshakes. Graphs = Networks. Nodes = vertices.  Edges = Links.				
+				Power law - many nodes with LOW degre, few with BIG degree - Знаменитости.
+				Small Avrage distance - 6 handshakes - немного шагов на самом деле что бы соединить точки в большом графе.
+				Large clustering coefficient (transitivity) - triangels. Если есть два друга, то они скорее всего знают друг друга.
+					
+				
+				http://www.leonidzhukov.net/hse/2019/sna/
+				https://cs.hse.ru/ai/magolego/sna
+				
+				Илья Макаров:
+				
+				Вторая лекция:
+				Critical Probability. Bigger P - more conections. (2) - money to money, newbies to manager or heads. Три правила реальный соц сетей. (3) # - vertices is 4. Propper model somewhere in between. HW#1 - before 10 may. Filename "Krotov_Egor_ha1.pdf or doc or html". Спросить у Чувилиной. Найти нужный x-mean. Подходит под Power of Law или нет. Линейная регрессия должна подойти под график. Во втором пункте найти лучшие параметры альфа и x-mean. В третьем выделить цветом разные связи по тиму весов. 
+				
+				Пакет для GEFX загрузки
+				Туториал по igraph
+				
+				Прорешать задачи с pdf
+				Комент к решенным задачам
+				
+				Леонид Жуков:
+				26.04 Лекция 3 в 622 ауд.
+				
+				Generative models:
+				1)Random Graph Model (Erdos & Renyi, 1959)
+				2)Preferential attachement model (Albert, Barabasi, 1999)
+				3)Small world model (Watts, Strogatz, 1998)
+				
+				Они простые для проверки понимания молей соц сетей.
+				Генеративные значит они создают графы.
+				1) - На тусовке пришел знакомишься. Случайно. Идём по всем случайным парам. Из 12 выршин - 66 пар.
+				Граф состоит из узлов и вершин. Формулы ожидаемое число связей и веростность коннекта и степени вершины.
+				
+				Что такое логарифм? 
+				
+				2) - нода ищет куда подойти. Те кто пришёл раньше заведут больше друзей. Опоздавшие недополучать связей. Разница между Random Graph и Preferential attachement граффами. R - igraph: barabasi.game().
+				
+				3) - баланс между треугольниками и длинной пути. как в аэропортах или трансопртными кольцами москвы.
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				

@@ -1,0 +1,94 @@
+---
+title: 'MAGOLEGO SNA 2019 Egor Krotov HW #3'
+author: "Egor Krotov"
+date: '21 мая 2019 г '
+output: html_document
+---
+
+## Yahoo Music Network
+For this assignment, you have to load the part of Yahoo Music Network. Archive contains network in GML format and corresponding list of artists.
+
+```{r}
+library('igraph')
+music_graph = read.graph("music2K.gml", format = "gml")
+music_graph.isolated.vertices = V(music_graph)[degree(music_graph) == 0]
+```
+
+Edges in this network appear if enough number of users have given ratings to both music bands. Note, that edges are weighted with similarity of the ratings.
+
+### 1. Preprocessing
+This network needs to be preprocessed. Do the steps, described on seminar, to make it look properly. How many vertices and edges were deleted?
+
+```{r}
+original_ecount = ecount(music_graph)
+original_vcount = vcount(music_graph)
+print(sprintf("Original %d vertices and %d edges", original_vcount, original_ecount))
+music_graph = delete.vertices(music_graph, degree(music_graph) == 0)
+checking = is.simple(simplify(music_graph, remove.multiple=FALSE))
+print(sprintf("Checking is there is simplicity: %s",checking))
+new_ecount = ecount(music_graph)
+new_vcount = vcount(music_graph)
+odds_vcount = original_vcount - new_vcount
+odds_ecount = original_ecount - new_ecount
+print(sprintf("Deleted %d vertices and %d edges", odds_vcount, odds_ecount))
+```
+
+### 2. Clustering
+Define clusters for this networks using one of the algorithms described on lectures and seminars:
+
+```{r}
+clusters_net = fastgreedy.community(music_graph) #[Reichardt and Bornholdt, 2006]
+```
+
+Compute density of obtained clusters:
+
+```{r}
+#In the cycle we go 
+clusters_density  = 1:length(clusters_net)
+inner_con =  1:length(clusters_net)
+print(sprintf("Clusters defined by algorithm [Reichardt and Bornholdt, 2006]: %d", length(clusters_density)))
+for (j in 1:length(clusters_net)) 
+{ tmp_graph = induced.subgraph(music_graph, which(clusters_net$membership == j))
+  tmp_con = inner_con[j]
+  tmp_den = clusters_density[j]
+  tmp_con = ecount(tmp_graph)
+  tmp_den = graph.density(tmp_graph)
+  print(sprintf("Cluster %d, density = %.4f (%d edges)", j,tmp_den, tmp_con )) }
+```
+
+Compute the ratio of inner clusters connections to outer ones:
+
+```{r}
+for (i in 1:length(clusters_net))
+{ tmp_graph = induced.subgraph(music_graph, clusters_net$membership == i)
+  sum_edges = length(E(music_graph))
+  in_edges = length(E(tmp_graph))
+  out_edges = length(E(induced.subgraph(music_graph,!(clusters_net$membership == i))))
+  final_edges = sum_edges - in_edges - out_edges
+  print(sprintf("Cluster %d ratio %.4f",i, in_edges/final_edges)) }
+```
+
+### 3. Visualization & interpretation
+
+Visulize five of the most dense clusters. Use names of artists as node labels on the graph.
+
+```{r, fig.width = 5, fig.height = 5}
+music_graph_artists = scan("artists.txt", what = character(), sep = "\n")
+music_graph_artists = music_graph_artists[-music_graph.isolated.vertices]
+V(music_graph)$label = music_graph_artists
+best_dens = which(clusters_density %in% sort(clusters_density,decreasing=TRUE)[1:5])
+for(i in 1:5) 
+{ best_vert = which(clusters_net$membership %in% best_dens[i])
+  top_graph = induced.subgraph(music_graph, best_vert)
+  plot(top_graph, layout=layout.circle, main=sprintf("Density of cluster %.4f",  graph.density(top_graph)),  height = 200, width = 300) }
+# 0.6429 80's USA POP. 0.5769  USA gospel singers. 0.5385 comedians. 0.5238 Funk . 0.2536 NA JAZZ
+```
+
+
+
+
+
+
+
+
+
