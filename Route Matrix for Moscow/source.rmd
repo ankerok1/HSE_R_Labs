@@ -1,0 +1,73 @@
+---
+title: "R Notebook"
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+# 1) Проверка наличия и установка стандартных пакетов. Для корреткной работы надо запускать R Studio от имени админа. Пакеты могут быть уже установлены, в таком случае выдаст надписи TRUE. Если совсем все плохо, то можно установить руками через Tools - Install Packages и активировать функицями library().
+```{r warning=FALSE, message=FALSE, results='hide'}
+#-------------------------Package Installer--------------------------
+# load packages and install if missing
+# thanks to Richard Schwinn for the code, http://stackoverflow.com/a/33876492
+
+# list the packages you need
+p <- c("data.table", "tidyverse","xml2", "magrittr", "jsonlite", "ggpubr", "dummies", "dendextend", "rlist", "cluster", "gridExtra", "sf", "tmap", "mapview", "RColorBrewer", "BAMMtools", "httr", "data.table")
+
+# this is a package loading function
+loadpacks <- function(package.list = p){
+new.packages <- package.list[!(package.list %in% installed.packages()[,'Package'])]
+        if(length(new.packages)) {
+                install.packages(new.packages, repos = 'https:/cran.rstudio.com')
+        }
+lapply(eval(package.list), require, character.only = TRUE)
+}
+
+loadpacks(p) # calling function to load and/or install packages
+rm(loadpacks, p) # cleanup namespace
+
+#----------------------End of Package Installer----------------------
+
+
+```
+
+# 2) Чтение файла со столбцом координат. Реализовал через единичное сравнение каждого с каждым, HERE не умеет в матричном сравнении выдавать время в пути.
+```{r}
+mat <- read.csv("test_full_one.csv",header=FALSE, sep=";")
+```
+
+```{r}
+# 3) Создание таблицы для результатов. Столбец а для номера строки.
+a = c(1:690)
+df = data.frame(a)
+
+# 4) Пробег по всей таблице. Тут же можно регулировать место старта - для какой координаты хочешь начать считать. 
+for (j in 1:690)  
+{
+  for (i in 1:690)  
+  {
+# 5) С задержкой можно поиграться. На такой скорости считает 690 координат за ~4 минуты.
+  Sys.sleep (0.03)
+# 6) ApiKey стоит мой. Можешь пользоваться. Сейчас стоит параметр car. Для измненения на публичный транспорт или пеший ход надо вписать нужное слово в это место.
+  res_json <- fromJSON(paste0("https://route.ls.hereapi.com/routing/7.2/calculateroute.json?apiKey=__EuCL_tLBBnDz9qB42L70zKoQAaL2zjcTQvREg8ve4&waypoint0=geo!",mat[j,1],"&waypoint1=geo!",mat[i,1],"&mode=fastest;car;traffic:disabled"))
+# 7) Запись в таблицу с ответами показателя TravelTime. Полный список того, что возвращает запрос можно посмотреть в переменной res_json.
+  df[i,j] = as.integer(res_json$response$route$summary$travelTime)
+  }
+}
+
+```
+
+# 8) За расчетом моэно следить в правой панели Environment нажимая на обновление и следя за перменными i и j. Расчет можно остановить в любой момент нажав на красный квадрат в блоке выше, сохранить csv и посмотреть что выходит. 
+
+```{r}
+# 9) Вывод таблицы с ответами в csv. 
+write.csv(df, file = "TravelTimeCar.csv")
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
